@@ -1,0 +1,92 @@
+### THESE ARE RANDOM COMMANDS USED WHILE SETTING UP A MESH ENVIRONMENT
+### IN A BEAGLE BONE BLUE (UNSUCCESSFULLY). USE AT YOUR OWN RISK :)
+
+sudo apt-get -y install libnl-3-dev libnl-genl-3-dev libgps23
+
+mkdir -p ~/src
+cd ~/src
+#git clone https://git.open-mesh.org/batctl.git
+#cd batctl
+#sudo make install
+
+sudo apt-get -y install batmand batctl alfred 
+
+# Suggested by Ubuntu:
+# sudo apt-get -y install gpsd
+
+#sudo service networking stop
+#sudo service udhcpd stop
+#sudo service avahi-daemon stop
+#sudo service dnsmasq stop
+#sudo service --status-all
+## Aparentemente solo con este está bien (solo mata la wifi)
+#sudo service connman stop
+
+
+# Add batman-adv Linux module
+sudo modprobe batman-adv
+interface_name='wlan0'
+
+# batman-adv inserts header of 32 bytes
+# MTU=1532 is not always compatible: "Error: mtu greater than device maximum."
+# so we may need to lower MTU from 1500 to 1468 in another layer?
+sudo ip link set up mtu 1532 dev ${interface_name}
+sudo iw ${interface_name} set type ibss
+
+# Add interface to batman-adv for use with mesh network
+sudo batctl if add ${interface_name}
+
+# Check if it was correctly added
+sudo batctl if
+
+# Start bat0
+sudo ip link set up dev bat0
+
+# Assign IPv4 to bat0
+sudo avahi-autoipd bat0 &
+
+# official doc steps
+iw dev wlan0 del
+iw phy phy0 interface add wlan0 type mp
+ip link set up mtu 1532 dev wlan0
+iw dev wlan0 ibss join tscfmesh 2462 HT20 fixed-freq 02:CA:FE:CA:CA:40
+
+# non-official
+ip link set ${interface_name} down
+iw ${interface_name} set type ibss
+ifconfig ${interface_name} mtu 1532 # This is necessary for batman-adv
+iwconfig ${interface_name} channel 11
+ip link set ${interface_name} up
+#iw <if> ibss join <ssid> 2432 # e.g. <ssid> = my-mesh-network
+iw ${interface_name} ibss join mesh 2462 
+#Frequency is 2.432. 0.0x should match with channel.
+
+### Troubleshooting:
+
+# If interface is in DORMANT mode:
+sudo ip link set ${interface_name} mode default
+
+### Open-WRT:
+# https://www.open-mesh.org/projects/batman-adv/wiki/Batman-adv-openwrt-config#Batman-adv-201300-till-20190-2
+# opkg install kmod-batman-adv
+
+# another one
+#https://github.com/o11s/open80211s/issues/67
+
+# https://webchat.freenode.net/#batman
+
+# MESH networks - MANET
+# https://www.youtube.com/watch?v=uWAqKAGXPL8
+# http://rboutaba.cs.uwaterloo.ca/Papers/Journals/2006/Sonia06.pdf
+
+# IBSS -> Ad-hoc network
+# https://wiki.archlinux.org/index.php/Ad-hoc_networking
+
+#BeagleBone Blue specs
+#https://docs.px4.io/v1.9.0/en/flight_controller/beaglebone_blue.html
+
+#It will take some seconds to connect to the mesh. To see which other stations are connected to the mesh, you can type:
+iw dev mesh0 station dump
+
+iw dev wlan0 ibss join tscfmesh 2462 HT20 fixed-freq 02:CA:FE:CA:CA:40
+
